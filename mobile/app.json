@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "Curbside Homes",
+    "slug": "curbside-homes",
+    "scheme": "curbsidehomes",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.curbsidehomes.app",
+      "supportsTablet": false
+    },
+    "android": {
+      "package": "com.curbsidehomes.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Curbside Homes uses your location to find homes for sale on the streets you drive.",
+          "locationAlwaysAndWhenInUsePermission": "Curbside Homes needs your location while Drive mode is on, even when the app is closed, so it can tell you when you pass a home for sale.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      "expo-notifications"
+    ]
+  }
+}
