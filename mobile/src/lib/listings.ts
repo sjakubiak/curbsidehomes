@@ -22,6 +22,7 @@ type ListingRow = {
   bedrooms: number | null;
   bathrooms: number | null;
   sqft: number | null;
+  url: string | null;
 };
 
 async function fetchListingsNear(lat: number, lng: number): Promise<Listing[]> {

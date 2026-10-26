@@ -48,6 +48,17 @@ iPhone builds work the same way with `--platform ios` (needs an Apple Developer 
 
 **RentCast costs:** every request is billed, and one request returns up to 500 listings. A city with 3,000 active listings costs 6 requests per sync, about 180 a month if synced daily. That's beyond the free tier (50/month), so plan on a paid plan. The RentCast key stays in Supabase secrets and never ships in the app, as RentCast's API terms require.
 
+### Listing data for Canada (Halifax launch)
+
+RentCast covers the US only. Canadian listings come from CREA's [DDF](https://www.crea.ca/files/technology/english/DDFR-Policy-and-Rules-February-2024-ENG.pdf), which has stricter rules:
+
+- Only a participating REALTOR® or brokerage (or a company with a CREA partner agreement) can pull the National Shared Pool feed. A technology provider can run the app on their behalf once they opt in.
+- Mobile apps are allowed if their sole purpose is advertising DDF listings.
+- Each listing must show the "Powered by REALTOR.ca" logo linked to that listing on REALTOR.ca, the listing brokerage name, the MLS®/REALTOR® trademark statement, and the controlling REALTOR®'s name and brokerage logo.
+- Data must refresh at least every 24 hours, and listings that are gone must be removed.
+
+The schema already stores a listing `url` (the REALTOR.ca page), and the app opens it on tap. A `sync-ddf` job replaces `sync-rentcast` once a REALTOR® partner gives access.
+
 ## Development
 
 ```bash

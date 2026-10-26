@@ -1,8 +1,13 @@
 import type { Listing } from './types';
 
-const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+const CURRENCY = process.env.EXPO_PUBLIC_CURRENCY ?? 'CAD';
+const money = new Intl.NumberFormat(CURRENCY === 'CAD' ? 'en-CA' : 'en-US', {
+  style: 'currency',
+  currency: CURRENCY,
+  maximumFractionDigits: 0,
+});
 
-export const formatPrice = (price: number) => usd.format(price);
+export const formatPrice = (price: number) => money.format(price);
 
 /** "3 bd · 2 ba · 1,850 sq ft", skipping anything unknown. */
 export function formatFacts(l: Listing): string {
@@ -13,8 +18,9 @@ export function formatFacts(l: Listing): string {
   return parts.join(' · ');
 }
 
-/** Opens the address on Zillow. A plain link needs no data license. */
+/** The listing's own page when the feed provides one, otherwise the address on Zillow (US only). */
 export function listingUrl(l: Listing): string {
+  if (l.url) return l.url;
   const slug = l.address.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '');
   return `https://www.zillow.com/homes/${encodeURIComponent(slug)}_rb/`;
 }

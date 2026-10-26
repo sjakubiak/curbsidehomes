@@ -17,6 +17,7 @@ create table public.listings (
   listed_date timestamptz,
   last_seen_date timestamptz,
   mls_number text,
+  url text,                            -- listing page, e.g. REALTOR.ca (required by CREA DDF rules)
   location extensions.geography(point, 4326) not null,
   synced_at timestamptz not null default now()
 );
@@ -36,7 +37,8 @@ returns table (
   lng double precision,
   bedrooms numeric,
   bathrooms numeric,
-  sqft integer
+  sqft integer,
+  url text
 )
 language sql
 stable
@@ -51,7 +53,8 @@ as $$
     st_x(l.location::geometry) as lng,
     l.bedrooms,
     l.bathrooms,
-    l.sqft
+    l.sqft,
+    l.url
   from public.listings l
   where l.status = 'Active'
     and st_dwithin(l.location, st_point(lng, lat, 4326)::geography, least(radius_m, 5000))

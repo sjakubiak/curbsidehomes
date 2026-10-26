@@ -7,6 +7,8 @@ export type Listing = {
   bedrooms?: number | null;
   bathrooms?: number | null;
   sqft?: number | null;
+  /** The listing's own page (REALTOR.ca for Canadian DDF data). */
+  url?: string | null;
   /** Set for listings the user dropped by hand to test alerts. */
   isTest?: boolean;
 };
