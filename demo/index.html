@@ -139,6 +139,9 @@ button, select, input[type="text"] { font: inherit; }
 .banner { position: relative; }
 .banner::after { content: ""; position: absolute; inset: -4px; border-radius: 22px; border: 3px solid var(--sign); pointer-events: none; animation: ring 1.2s ease-out infinite; }
 @keyframes ring { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.05); } }
+.banner.quiet { background: #dfe6ea; }
+.banner.quiet::after { display: none; }
+.banner.quiet .tap { background: #5b6b75; }
 .banner .tap { grid-column: 2; justify-self: start; margin-top: 4px; font-size: 12px; font-weight: 700; color: #fff; background: #c8361f; border-radius: 999px; padding: 2px 10px; }
 @keyframes drop { from { transform: translateY(-30px); opacity: 0; } to { transform: none; opacity: 1; } }
 
@@ -423,7 +426,7 @@ footer { font-size: 13px; color: var(--muted); }
   el('text', { x: 186, y: 2 }, legend).textContent = '80 m alert range';
 
   // ---------- Simulation state ----------
-  let speed = 8, playing = false, simT = 0, lastFix = -1, last = 0, finished = false;
+  let speed = 8, playing = false, simT = 0, lastFix = -1, last = 0, finished = false, rafId = 0;
   let seen = new Set(), lastAlertAt = null, pending = [], log = [], alerts = 0, parkedAt = null;
 
   const saveLater = $('saveLater');
@@ -458,6 +461,9 @@ footer { font-size: 13px; color: var(--muted); }
     else if (lastAlertAt == null || t - lastAlertAt >= RULES.minAlertGapS) {
       lastAlertAt = t; alerts++;
       showBanner({ title: `For sale: ${fmtPrice(fresh[0].price)}`, body: `${fresh[0].addr} · ${facts(fresh[0])}`, listing: fresh[0] });
+    } else {
+      // The live app stays silent here; the demo shows it so viewers see the 2-minute rule at work.
+      showBanner({ quiet: true, title: `Saved to drive log: ${fmtPrice(fresh[0].price)}`, body: `${fresh[0].addr} · no alert, one was sent less than 2 minutes ago`, listing: fresh[0], note: 'silent' });
     }
     renderPhone();
   }
@@ -480,18 +486,19 @@ footer { font-size: 13px; color: var(--muted); }
 
   // ---------- Phone UI ----------
   const bannersEl = $('banners');
-  function showBanner({ title, body, listing, toLog, note }) {
+  function showBanner({ title, body, listing, toLog, note, quiet }) {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'banner';
+    b.className = quiet ? 'banner quiet' : 'banner';
     b.innerHTML = `<span class="icon"><svg width="20" height="20" viewBox="0 0 40 40" aria-hidden="true"><path d="M9 21 20 12l11 9v9H9z" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round"/></svg></span>
-      <span class="t1"><span></span><small>${note || 'now'}</small></span><span class="t2"></span><span class="tap">${listing ? 'Tap to see the listing' : 'Tap to see your drive log'} ›</span>`;
+      <span class="t1"><span></span><small>${note || 'now'}</small></span><span class="t2"></span><span class="tap">${quiet ? 'Silent in the app · tap to see it' : listing ? 'Tap to see the listing' : 'Tap to see your drive log'} ›</span>`;
     b.querySelector('.t1 span').textContent = title;
     b.querySelector('.t2').textContent = body;
     b.addEventListener('click', () => { b.remove(); if (listing) openSheet(listing); else if (toLog) selectTab('log'); });
     bannersEl.prepend(b);
     while (bannersEl.children.length > 2) bannersEl.lastChild.remove();
-    setTimeout(() => b.remove(), 12000);
+    // Counts down only while the drive plays, so pausing never makes an alert vanish unseen.
+    b.dataset.left = '12000';
   }
 
   let sheetListing = null;
@@ -572,6 +579,12 @@ footer { font-size: 13px; color: var(--muted); }
   }
 
   // ---------- Loop ----------
+  function ageBanners(ms) {
+    for (const b of [...bannersEl.children]) {
+      const left = Number(b.dataset.left) - ms;
+      if (left <= 0) b.remove(); else b.dataset.left = String(left);
+    }
+  }
   function placeCar() {
     const d = Math.min(simT * SPEED_MPS, routeLen);
     const p = pointAt(d);
@@ -595,13 +608,14 @@ footer { font-size: 13px; color: var(--muted); }
     const dt = Math.min((now - last) / 1000, 0.1);
     last = now;
     simT += dt * speed;
+    ageBanners(dt * 1000);
     const p = placeCar();
     while (lastFix + FIX_EVERY_S <= simT && lastFix * SPEED_MPS < routeLen) {
       lastFix += FIX_EVERY_S;
       onFix(pointAt(lastFix * SPEED_MPS), lastFix);
     }
     if (simT * SPEED_MPS >= routeLen) { finishDrive(); placeCar(); return; }
-    requestAnimationFrame(tick);
+    rafId = requestAnimationFrame(tick);
   }
 
   function reset() {
@@ -621,7 +635,8 @@ footer { font-size: 13px; color: var(--muted); }
     $('play').classList.toggle('attn', !playing);
     $('play').textContent = playing ? 'Pause' : 'Resume';
     $('driveStatus').textContent = playing ? 'Driving · Tidewater Avenue' : 'Paused';
-    if (playing) { last = performance.now(); requestAnimationFrame(tick); }
+    cancelAnimationFrame(rafId);
+    if (playing) { last = performance.now(); rafId = requestAnimationFrame(tick); }
     renderPhone();
   });
   $('reset').addEventListener('click', reset);
