@@ -1,0 +1,636 @@
+<title>Curbside Homes Demo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Atkinson+Hyperlegible:wght@400;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: a schematic harbour-town map beside a phone, the drive plays on the map and alerts land on the phone. */
+:root {
+  --bg: #f3f5f6;
+  --surface: #ffffff;
+  --ink: #15222b;
+  --muted: #5b6b75;
+  --line: #d6dde1;
+  --harbour: #1d4e6b;        /* accent: Atlantic navy */
+  --sign: #c8361f;           /* for-sale sign red */
+  --water: #cfe1ea;
+  --land: #e9ede6;
+  --road: #ffffff;
+  --road-edge: #c9d1d5;
+  --house: #c4ccd0;
+  --route: #1d4e6b;
+  --phone-bg: #0f1a21;
+  --phone-ink: #f2f5f7;
+  --phone-muted: #9fb0ba;
+  --phone-card: #1b2a33;
+  --banner: #f4f7f9;
+  --banner-ink: #15222b;
+  --ok: #2f7d4f;
+  --font-display: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1418; --surface: #152027; --ink: #e6ecef; --muted: #93a4ae; --line: #26343c;
+    --harbour: #7fb3d1; --sign: #ff6a4d; --water: #12303f; --land: #18242a; --road: #2a3840;
+    --road-edge: #34454e; --house: #3a4a52; --route: #7fb3d1; --ok: #5cc285;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1418; --surface: #152027; --ink: #e6ecef; --muted: #93a4ae; --line: #26343c;
+  --harbour: #7fb3d1; --sign: #ff6a4d; --water: #12303f; --land: #18242a; --road: #2a3840;
+  --road-edge: #34454e; --house: #3a4a52; --route: #7fb3d1; --ok: #5cc285;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 56px; display: grid; gap: 28px; }
+
+header.top { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand svg { flex: none; }
+h1 { font-family: var(--font-display); font-size: clamp(28px, 4vw, 40px); line-height: 1.05; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.tagline { margin: 4px 0 0; color: var(--muted); max-width: 60ch; }
+.sample-flag {
+  font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase;
+  border: 1px dashed var(--sign); color: var(--sign); padding: 4px 10px; border-radius: 4px; white-space: nowrap;
+}
+
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 24px; align-items: start; }
+@media (max-width: 880px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+
+.map-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; min-width: 0; }
+.map-wrap { position: relative; }
+#map { display: block; width: 100%; height: auto; }
+.map-caption {
+  position: absolute; left: 12px; bottom: 10px; font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 80%, transparent); padding: 2px 6px; border-radius: 4px;
+}
+.controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 14px 16px; border-top: 1px solid var(--line); }
+button, select, input[type="text"] { font: inherit; }
+.btn {
+  appearance: none; border: 0; border-radius: 999px; padding: 10px 20px; font-weight: 700; cursor: pointer;
+  background: var(--harbour); color: var(--surface); font-family: var(--font-display); font-size: 16px;
+}
+.btn:focus-visible, .seg button:focus-visible, .toggle input:focus-visible + span, .banner:focus-visible, .tab:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--harbour) 55%, transparent); outline-offset: 2px;
+}
+.btn.secondary { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.seg button { border: 0; background: transparent; color: var(--muted); padding: 8px 12px; cursor: pointer; font-family: var(--font-mono); font-size: 13px; }
+.seg button[aria-pressed="true"] { background: var(--harbour); color: var(--surface); }
+.toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+.toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.toggle span.track { width: 40px; height: 24px; border-radius: 999px; background: var(--line); position: relative; transition: background .2s; flex: none; }
+.toggle span.track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface); transition: transform .2s; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+.toggle input:checked + span.track { background: var(--harbour); }
+.toggle input:checked + span.track::after { transform: translateX(16px); }
+.readout { margin-left: auto; font-family: var(--font-mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; display: flex; gap: 14px; flex-wrap: wrap; }
+@media (max-width: 560px) { .readout { margin-left: 0; width: 100%; } }
+
+/* Phone */
+.phone-col { display: grid; gap: 14px; justify-items: center; }
+.phone {
+  width: 100%; max-width: 340px; aspect-ratio: 9 / 17; background: var(--phone-bg); color: var(--phone-ink);
+  border-radius: 44px; padding: 12px; box-shadow: 0 0 0 2px #2b3a43, 0 24px 48px -20px rgba(10, 25, 35, .55); position: relative;
+}
+.screen { position: relative; height: 100%; border-radius: 34px; overflow: hidden; background: linear-gradient(180deg, #13232d 0%, #0f1a21 60%); display: flex; flex-direction: column; }
+.status { display: flex; justify-content: space-between; padding: 12px 22px 4px; font-family: var(--font-mono); font-size: 12px; color: var(--phone-ink); }
+.app-head { padding: 10px 18px 6px; display: flex; align-items: center; justify-content: space-between; }
+.app-head h2 { margin: 0; font-family: var(--font-display); font-size: 20px; }
+.pill { font-family: var(--font-mono); font-size: 11px; padding: 3px 8px; border-radius: 999px; background: var(--phone-card); color: var(--phone-muted); }
+.pill.on { background: #1f6b45; color: #e8fff1; }
+.tabs { display: flex; gap: 6px; padding: 6px 18px 10px; }
+.tab { flex: 1; border: 0; border-radius: 10px; padding: 8px; background: var(--phone-card); color: var(--phone-muted); cursor: pointer; font-size: 13px; font-weight: 700; }
+.tab[aria-selected="true"] { background: var(--phone-ink); color: var(--phone-bg); }
+.view { flex: 1; overflow-y: auto; padding: 0 14px 14px; }
+.drive-card { background: var(--phone-card); border-radius: 18px; padding: 16px; display: grid; gap: 6px; }
+.drive-card .big { font-family: var(--font-display); font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; }
+.drive-card .sub { color: var(--phone-muted); font-size: 13px; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.stats div { background: var(--phone-card); border-radius: 14px; padding: 10px 12px; }
+.stats b { display: block; font-family: var(--font-display); font-size: 22px; font-variant-numeric: tabular-nums; }
+.stats span { font-size: 12px; color: var(--phone-muted); }
+.rule-note { margin-top: 10px; font-size: 12px; color: var(--phone-muted); line-height: 1.4; }
+.log-item { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 12px 4px; border-bottom: 1px solid #22323b; cursor: pointer; background: none; border-left: 0; border-right: 0; border-top: 0; color: inherit; text-align: left; width: 100%; font: inherit; }
+.log-item .p { font-family: var(--font-display); font-size: 17px; font-weight: 700; }
+.log-item .t { font-family: var(--font-mono); font-size: 11px; color: var(--phone-muted); align-self: center; }
+.log-item .a { grid-column: 1 / -1; font-size: 13px; color: var(--phone-muted); }
+.empty { color: var(--phone-muted); text-align: center; padding: 40px 12px; font-size: 14px; }
+
+.banners { position: absolute; top: 34px; left: 8px; right: 8px; display: grid; gap: 6px; z-index: 5; pointer-events: none; }
+.banner {
+  pointer-events: auto; text-align: left; border: 0; width: 100%; cursor: pointer; display: grid; grid-template-columns: 34px 1fr; gap: 2px 10px;
+  background: var(--banner); color: var(--banner-ink); border-radius: 18px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  animation: drop .35s cubic-bezier(.2,.9,.3,1.2);
+}
+.banner .icon { grid-row: span 2; width: 34px; height: 34px; border-radius: 9px; background: var(--harbour); display: grid; place-items: center; }
+.banner .t1 { font-weight: 700; font-size: 14px; display: flex; justify-content: space-between; gap: 8px; }
+.banner .t1 small { font-weight: 400; color: #5b6b75; font-size: 11px; }
+.banner .t2 { font-size: 13px; color: #34444d; }
+@keyframes drop { from { transform: translateY(-30px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.sheet { position: absolute; inset: 0; background: #0f1a21; z-index: 8; display: flex; flex-direction: column; animation: up .3s ease-out; }
+@keyframes up { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.sheet .photo { height: 38%; position: relative; }
+.sheet .photo svg { width: 100%; height: 100%; display: block; }
+.sheet .close { position: absolute; top: 40px; left: 12px; border: 0; background: rgba(15,26,33,.7); color: #fff; border-radius: 999px; width: 34px; height: 34px; cursor: pointer; font-size: 18px; }
+.sheet .badge { position: absolute; top: 44px; right: 12px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; background: #fff; color: var(--sign); padding: 3px 7px; border-radius: 4px; }
+.sheet .body { padding: 14px 16px; display: grid; gap: 8px; overflow-y: auto; }
+.sheet .price { font-family: var(--font-display); font-size: 30px; line-height: 1; }
+.sheet .addr { color: var(--phone-muted); font-size: 14px; }
+.facts { display: flex; gap: 6px; flex-wrap: wrap; }
+.facts span { background: var(--phone-card); border-radius: 8px; padding: 4px 8px; font-size: 12px; }
+.broker { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: center; background: var(--phone-card); border-radius: 14px; padding: 10px; }
+.broker .logo { width: 40px; height: 40px; border-radius: 10px; border: 1px dashed var(--phone-muted); display: grid; place-items: center; font-family: var(--font-mono); font-size: 9px; color: var(--phone-muted); text-align: center; line-height: 1.1; }
+.broker b { display: block; font-size: 14px; }
+.broker span { font-size: 12px; color: var(--phone-muted); }
+.cta { border: 0; border-radius: 12px; padding: 12px; background: var(--phone-ink); color: var(--phone-bg); font-weight: 700; cursor: pointer; font-size: 14px; }
+.fine { font-size: 11px; color: var(--phone-muted); }
+
+.brokerage-input { width: 100%; max-width: 340px; display: grid; gap: 4px; }
+.brokerage-input label { font-size: 13px; color: var(--muted); }
+.brokerage-input input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); }
+
+/* Pitch */
+.pitch { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; border-top: 1px solid var(--line); padding-top: 24px; }
+@media (max-width: 760px) { .pitch { grid-template-columns: minmax(0, 1fr); } }
+.pitch h3 { font-family: var(--font-display); font-size: 20px; margin: 0 0 6px; text-wrap: balance; }
+.pitch p { margin: 0; color: var(--muted); max-width: 46ch; }
+.pitch .kicker { font-family: var(--font-mono); font-size: 12px; color: var(--sign); letter-spacing: .05em; margin-bottom: 6px; display: block; }
+footer { font-size: 13px; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) { .banner, .sheet { animation: none; } .toggle span.track, .toggle span.track::after { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="brand">
+        <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true">
+          <rect width="40" height="40" rx="10" fill="var(--harbour)"/>
+          <path d="M9 21 20 12l11 9v9H9z" fill="none" stroke="var(--surface)" stroke-width="2.4" stroke-linejoin="round"/>
+          <rect x="22" y="22" width="9" height="6" rx="1" fill="var(--sign)"/>
+          <path d="M26.5 28v4" stroke="var(--surface)" stroke-width="2"/>
+        </svg>
+        <h1>Curbside Homes</h1>
+      </div>
+      <p class="tagline">Drive past a home for sale and your phone tells you the asking price. Press <strong>Start the drive</strong> to see it work on a sample Halifax neighbourhood.</p>
+    </div>
+    <span class="sample-flag">Demo · sample listings only</span>
+  </header>
+
+  <section class="stage" aria-label="Interactive demo">
+    <div class="map-panel">
+      <div class="map-wrap">
+        <svg id="map" viewBox="0 0 1300 900" role="img" aria-label="Schematic map of the demo route with homes for sale marked"></svg>
+        <span class="map-caption">Schematic map · 40 km/h · street names are fictional</span>
+      </div>
+      <div class="controls">
+        <button class="btn" id="play" type="button">Start the drive</button>
+        <button class="btn secondary" id="reset" type="button">Reset</button>
+        <div class="seg" role="group" aria-label="Playback speed">
+          <button type="button" data-speed="4" aria-pressed="false">4×</button>
+          <button type="button" data-speed="8" aria-pressed="true">8×</button>
+          <button type="button" data-speed="16" aria-pressed="false">16×</button>
+        </div>
+        <label class="toggle" for="saveLater">
+          <input type="checkbox" id="saveLater">
+          <span class="track" aria-hidden="true"></span>
+          Save for later
+        </label>
+        <div class="readout" aria-live="off">
+          <span id="clock">0:00</span>
+          <span id="dist">0.00 km</span>
+          <span id="spd">0 km/h</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="phone-col">
+      <div class="phone" aria-label="Phone preview">
+        <div class="screen">
+          <div class="status"><span id="phoneTime">9:41</span><span>LTE ▮▮▮</span></div>
+          <div class="banners" id="banners" aria-live="polite"></div>
+          <div class="app-head">
+            <h2>Curbside</h2>
+            <span class="pill" id="drivePill">Drive mode off</span>
+          </div>
+          <div class="tabs" role="tablist">
+            <button class="tab" role="tab" id="tabDrive" aria-selected="true" type="button">Drive</button>
+            <button class="tab" role="tab" id="tabLog" aria-selected="false" type="button">Drive log</button>
+          </div>
+          <div class="view" id="viewDrive" role="tabpanel" aria-labelledby="tabDrive">
+            <div class="drive-card">
+              <span class="sub" id="driveStatus">Ready when you are</span>
+              <span class="big" id="driveBig">0 homes</span>
+              <span class="sub">for sale passed on this drive</span>
+            </div>
+            <div class="stats">
+              <div><b id="statAlerts">0</b><span>alerts sent</span></div>
+              <div><b id="statSaved">0</b><span>saved to log</span></div>
+            </div>
+            <p class="rule-note" id="ruleNote">Alerts are short and need no tap. At most one every 2 minutes; the rest go to your drive log.</p>
+          </div>
+          <div class="view" id="viewLog" role="tabpanel" aria-labelledby="tabLog" hidden></div>
+          <div id="sheetHost"></div>
+        </div>
+      </div>
+      <div class="brokerage-input">
+        <label for="brokerName">Show your brokerage on the listings</label>
+        <input id="brokerName" type="text" placeholder="e.g. Harbour Realty" autocomplete="organization">
+      </div>
+    </div>
+  </section>
+
+  <section class="pitch" aria-label="Why brokerages use it">
+    <div>
+      <span class="kicker">For buyers</span>
+      <h3>The price shows up at the curb</h3>
+      <p>Buyers already drive neighbourhoods looking for signs. Curbside tells them the asking price the moment they pass, and one tap later they are on your listing.</p>
+    </div>
+    <div>
+      <span class="kicker">For your brokerage</span>
+      <h3>Your name on every alert</h3>
+      <p>Listings appear with your brokerage's name and logo and link straight to the REALTOR.ca listing, as CREA's DDF rules require. Every tap is a warm buyer lead.</p>
+    </div>
+    <div>
+      <span class="kicker">Built for the road</span>
+      <h3>Safe by design</h3>
+      <p>Alerts can be read at a glance. One per home, never more than one every two minutes, and a Save for later mode that waits until the driver parks.</p>
+    </div>
+  </section>
+
+  <footer>All homes, prices and street names in this demo are made up. The live app uses listings from a participating brokerage's DDF feed.</footer>
+</div>
+
+<script>
+(() => {
+  // ---------- Sample data (fictional) ----------
+  const STREETS = [
+    { name: 'Tidewater Avenue', pts: [[60, 760], [1180, 760]] },
+    { name: 'Lighthouse Lane', pts: [[1100, 820], [1100, 180]] },
+    { name: 'Harbourview Drive', pts: [[200, 260], [1180, 260]] },
+    { name: 'Bluenose Crescent', pts: [[380, 200], [380, 820]] },
+    { name: 'Fogbank Street', pts: [[300, 520], [1040, 520]] },
+    { name: 'Dory Row', pts: [[760, 260], [760, 760]] },
+  ];
+  // The drive: east on Tidewater, north on Lighthouse, west on Harbourview, south on Bluenose, east on Fogbank.
+  const ROUTE = [[80, 760], [1100, 760], [1100, 260], [380, 260], [380, 520], [900, 520]];
+
+  const LISTINGS = [
+    { id: 'a', x: 290, y: 732, price: 489000, addr: '214 Tidewater Avenue', bd: 3, ba: 2, sqft: 1640, type: 'Bungalow', hue: 18 },
+    { id: 'b', x: 640, y: 790, price: 625000, addr: '391 Tidewater Avenue', bd: 4, ba: 2.5, sqft: 2110, type: 'Two-storey', hue: 200 },
+    { id: 'c', x: 900, y: 734, price: 412500, addr: '502 Tidewater Avenue', bd: 2, ba: 1, sqft: 1080, type: 'Cape Cod', hue: 140 },
+    { id: 'd', x: 1128, y: 520, price: 739900, addr: '77 Lighthouse Lane', bd: 4, ba: 3, sqft: 2480, type: 'Two-storey', hue: 32 },
+    { id: 'e', x: 1072, y: 380, price: 559000, addr: '120 Lighthouse Lane', bd: 3, ba: 2, sqft: 1820, type: 'Split-level', hue: 260 },
+    { id: 'f', x: 860, y: 232, price: 899000, addr: '18 Harbourview Drive', bd: 5, ba: 3.5, sqft: 3150, type: 'Executive', hue: 210 },
+    { id: 'g', x: 560, y: 288, price: 529000, addr: '61 Harbourview Drive', bd: 3, ba: 1.5, sqft: 1500, type: 'Saltbox', hue: 0 },
+    { id: 'h', x: 408, y: 410, price: 449000, addr: '33 Bluenose Crescent', bd: 3, ba: 1, sqft: 1290, type: 'Bungalow', hue: 90 },
+    { id: 'i', x: 640, y: 548, price: 575000, addr: '140 Fogbank Street', bd: 3, ba: 2.5, sqft: 1760, type: 'Semi-detached', hue: 300 },
+    // Off-route listings: nearby but never beside the car, so they don't alert.
+    { id: 'x1', x: 760, y: 640, price: 465000, addr: '12 Dory Row', bd: 2, ba: 2, sqft: 1190, type: 'Townhouse', hue: 50 },
+    { id: 'x2', x: 220, y: 520, price: 515000, addr: '9 Fogbank Street', bd: 3, ba: 2, sqft: 1580, type: 'Bungalow', hue: 170 },
+  ];
+
+  // ---------- Rules (same as the app's matcher) ----------
+  const RULES = { radiusM: 80, alwaysMatchM: 30, minAbeam: 45, maxAbeam: 135, minAlertGapS: 120, parkedAfterS: 120 };
+  const SPEED_MPS = 40 / 3.6;
+  const FIX_EVERY_S = 1;
+
+  // ---------- Helpers ----------
+  const $ = (id) => document.getElementById(id);
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs = {}, parent) => {
+    const n = document.createElementNS(svgNS, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  const money = new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD', maximumFractionDigits: 0 });
+  const fmtPrice = (p) => money.format(p);
+  const facts = (l) => `${l.bd} bd · ${l.ba} ba · ${l.sqft.toLocaleString('en-CA')} sq ft`;
+  const angleDiff = (a, b) => { const d = (((b - a) % 360) + 540) % 360 - 180; return d === -180 ? 180 : d; };
+  // Map heading: 0 = north (up), clockwise.
+  const bearing = (x1, y1, x2, y2) => (Math.atan2(x2 - x1, -(y2 - y1)) * 180 / Math.PI + 360) % 360;
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+  };
+
+  // Route geometry
+  const segs = [];
+  let routeLen = 0;
+  for (let i = 0; i < ROUTE.length - 1; i++) {
+    const [x1, y1] = ROUTE[i], [x2, y2] = ROUTE[i + 1];
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    segs.push({ x1, y1, x2, y2, len, start: routeLen, heading: bearing(x1, y1, x2, y2) });
+    routeLen += len;
+  }
+  function pointAt(d) {
+    d = Math.min(d, routeLen);
+    const s = segs.find((sg) => d <= sg.start + sg.len) || segs[segs.length - 1];
+    const t = (d - s.start) / s.len;
+    return { x: s.x1 + (s.x2 - s.x1) * t, y: s.y1 + (s.y2 - s.y1) * t, heading: s.heading };
+  }
+
+  // ---------- Draw map ----------
+  const map = $('map');
+  const css = (v) => `var(${v})`;
+  el('rect', { x: 0, y: 0, width: 1300, height: 900, fill: css('--land') }, map);
+  // Harbour along the top edge
+  el('path', { d: 'M0 0 H1300 V120 C1150 150 1000 110 860 140 C700 172 560 120 420 150 C280 178 140 130 0 160 Z', fill: css('--water') }, map);
+  const waterLabel = el('text', { x: 980, y: 70, fill: css('--harbour'), 'font-family': 'JetBrains Mono, monospace', 'font-size': 18, 'letter-spacing': 4, opacity: 0.7 }, map);
+  waterLabel.textContent = 'THE HARBOUR';
+  // Park
+  el('rect', { x: 430, y: 300, width: 300, height: 190, rx: 18, fill: css('--ok'), opacity: 0.16 }, map);
+  const parkLabel = el('text', { x: 580, y: 400, fill: css('--ok'), 'font-family': 'JetBrains Mono, monospace', 'font-size': 15, 'text-anchor': 'middle', opacity: 0.85 }, map);
+  parkLabel.textContent = 'Seawall Park';
+
+  const roads = el('g', {}, map);
+  for (const s of STREETS) {
+    const d = `M${s.pts.map((p) => p.join(' ')).join(' L')}`;
+    el('path', { d, stroke: css('--road-edge'), 'stroke-width': 30, 'stroke-linecap': 'round', fill: 'none' }, roads);
+    el('path', { d, stroke: css('--road'), 'stroke-width': 26, 'stroke-linecap': 'round', fill: 'none' }, roads);
+  }
+  // Houses along streets (deterministic), skipping the park and listing spots
+  const houses = el('g', {}, map);
+  const nearListing = (x, y) => LISTINGS.some((l) => Math.hypot(l.x - x, l.y - y) < 26);
+  const inPark = (x, y) => x > 420 && x < 740 && y > 292 && y < 498;
+  for (const s of STREETS) {
+    const [[x1, y1], [x2, y2]] = s.pts;
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    const ux = (x2 - x1) / len, uy = (y2 - y1) / len;
+    for (let d = 40; d < len - 30; d += 34) {
+      for (const side of [-1, 1]) {
+        const x = x1 + ux * d + -uy * 28 * side, y = y1 + uy * d + ux * 28 * side;
+        if (y < 170 || inPark(x, y) || nearListing(x, y)) continue;
+        const crossing = STREETS.some((o) => o !== s && Math.abs((o.pts[0][0] === o.pts[1][0]) ? x - o.pts[0][0] : y - o.pts[0][1]) < 34);
+        if (crossing) continue;
+        el('rect', { x: x - 9, y: y - 9, width: 18, height: 18, rx: 3, fill: css('--house') }, houses);
+      }
+    }
+  }
+  // Street labels
+  const labels = el('g', { 'font-family': 'Atkinson Hyperlegible, sans-serif', 'font-size': 14, fill: css('--muted') }, map);
+  const labelPos = {
+    'Tidewater Avenue': [150, 800, 0], 'Lighthouse Lane': [1150, 650, 90], 'Harbourview Drive': [960, 218, 0],
+    'Bluenose Crescent': [334, 700, -90], 'Fogbank Street': [820, 503, 0], 'Dory Row': [796, 690, 90],
+  };
+  for (const [name, [x, y, r]] of Object.entries(labelPos)) {
+    const t = el('text', { x, y, transform: `rotate(${r} ${x} ${y})` }, labels);
+    t.textContent = name;
+  }
+  // Route
+  el('path', { d: `M${ROUTE.map((p) => p.join(' ')).join(' L')}`, stroke: css('--route'), 'stroke-width': 4, 'stroke-dasharray': '2 10', 'stroke-linecap': 'round', fill: 'none', opacity: 0.55 }, map);
+  const trail = el('path', { d: '', stroke: css('--route'), 'stroke-width': 6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', fill: 'none' }, map);
+  // Listings: for-sale signs
+  const signLayer = el('g', {}, map);
+  const signEls = {};
+  for (const l of LISTINGS) {
+    const g = el('g', { transform: `translate(${l.x} ${l.y})` }, signLayer);
+    el('rect', { x: -12, y: -12, width: 24, height: 24, rx: 4, fill: css('--sign') }, g);
+    el('path', { d: 'M-6 1 0 -5l6 6v6h-12z', fill: css('--surface') }, g);
+    const tag = el('g', { opacity: 0 }, g);
+    el('rect', { x: -48, y: -46, width: 96, height: 26, rx: 13, fill: css('--ink') }, tag);
+    const tt = el('text', { x: 0, y: -28, 'text-anchor': 'middle', fill: css('--surface'), 'font-family': 'JetBrains Mono, monospace', 'font-size': 13 }, tag);
+    tt.textContent = `$${Math.round(l.price / 1000)}K`;
+    signEls[l.id] = { g, tag };
+  }
+  // Match radius ring + car
+  const ring = el('circle', { r: RULES.radiusM, fill: css('--harbour'), opacity: 0.08, stroke: css('--harbour'), 'stroke-opacity': 0.4, 'stroke-dasharray': '4 6' }, map);
+  const car = el('g', {}, map);
+  el('path', { d: 'M0 -16 L11 12 L0 6 L-11 12 Z', fill: css('--harbour'), stroke: css('--surface'), 'stroke-width': 3, 'stroke-linejoin': 'round' }, car);
+
+  // Legend
+  const legend = el('g', { transform: 'translate(40 840)', 'font-family': 'Atkinson Hyperlegible, sans-serif', 'font-size': 14, fill: css('--muted') }, map);
+  el('rect', { x: 0, y: -12, width: 18, height: 18, rx: 3, fill: css('--sign') }, legend);
+  el('text', { x: 26, y: 2 }, legend).textContent = 'Sample listing';
+  el('circle', { cx: 170, cy: -3, r: 9, fill: css('--harbour'), opacity: 0.15, stroke: css('--harbour'), 'stroke-dasharray': '3 3' }, legend);
+  el('text', { x: 186, y: 2 }, legend).textContent = '80 m alert range';
+
+  // ---------- Simulation state ----------
+  let speed = 8, playing = false, simT = 0, lastFix = -1, last = 0, finished = false;
+  let seen = new Set(), lastAlertAt = null, pending = [], log = [], alerts = 0, parkedAt = null;
+
+  const saveLater = $('saveLater');
+  const brokerInput = $('brokerName');
+  brokerInput.value = store.get('curbside-broker') || '';
+  brokerInput.addEventListener('input', () => { store.set('curbside-broker', brokerInput.value); refreshSheet(); });
+  const brokerName = () => brokerInput.value.trim() || 'Your Brokerage';
+
+  function matchesBeside(p) {
+    const out = [];
+    for (const l of LISTINGS) {
+      const d = Math.hypot(l.x - p.x, l.y - p.y);
+      if (d > RULES.radiusM) continue;
+      if (d > RULES.alwaysMatchM) {
+        const rel = Math.abs(angleDiff(p.heading, bearing(p.x, p.y, l.x, l.y)));
+        if (rel < RULES.minAbeam || rel > RULES.maxAbeam) continue;
+      }
+      out.push({ l, d });
+    }
+    return out.sort((a, b) => a.d - b.d).map((m) => m.l);
+  }
+
+  function onFix(p, t) {
+    const fresh = matchesBeside(p).filter((l) => !seen.has(l.id));
+    for (const l of fresh) {
+      seen.add(l.id);
+      log.unshift({ l, t });
+      signEls[l.id].tag.setAttribute('opacity', 1);
+    }
+    if (fresh.length === 0) return;
+    if (saveLater.checked) { pending.push(...fresh); }
+    else if (lastAlertAt == null || t - lastAlertAt >= RULES.minAlertGapS) {
+      lastAlertAt = t; alerts++;
+      showBanner({ title: `For sale: ${fmtPrice(fresh[0].price)}`, body: `${fresh[0].addr} · ${facts(fresh[0])}`, listing: fresh[0] });
+    }
+    renderPhone();
+  }
+
+  function finishDrive() {
+    finished = true; playing = false;
+    $('play').textContent = 'Drive again';
+    parkedAt = simT;
+    $('driveStatus').textContent = 'Parked';
+    if (saveLater.checked && pending.length) {
+      // Fast-forward the 2-minute parked wait so the summary arrives now.
+      const n = pending.length;
+      showBanner({ title: `You passed ${n} home${n === 1 ? '' : 's'} for sale`, body: pending.slice(0, 2).map((l) => `${fmtPrice(l.price)} · ${l.addr}`).join('\n'), toLog: true, note: '2 min after parking' });
+      alerts++;
+      pending = [];
+    }
+    renderPhone();
+  }
+
+  // ---------- Phone UI ----------
+  const bannersEl = $('banners');
+  function showBanner({ title, body, listing, toLog, note }) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'banner';
+    b.innerHTML = `<span class="icon"><svg width="20" height="20" viewBox="0 0 40 40" aria-hidden="true"><path d="M9 21 20 12l11 9v9H9z" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round"/></svg></span>
+      <span class="t1"><span></span><small>${note || 'now'}</small></span><span class="t2"></span>`;
+    b.querySelector('.t1 span').textContent = title;
+    b.querySelector('.t2').textContent = body;
+    b.addEventListener('click', () => { b.remove(); if (listing) openSheet(listing); else if (toLog) selectTab('log'); });
+    bannersEl.prepend(b);
+    while (bannersEl.children.length > 2) bannersEl.lastChild.remove();
+    setTimeout(() => b.remove(), 7000);
+  }
+
+  let sheetListing = null;
+  function houseSvg(l) {
+    const h = l.hue;
+    return `<svg viewBox="0 0 320 200" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <rect width="320" height="200" fill="hsl(205 45% 72%)"/>
+      <rect y="150" width="320" height="50" fill="hsl(110 25% 42%)"/>
+      <path d="M70 150 V95 L160 40 L250 95 V150 Z" fill="hsl(${h} 35% 62%)"/>
+      <path d="M58 100 L160 34 L262 100" fill="none" stroke="hsl(${h} 25% 28%)" stroke-width="10" stroke-linejoin="round"/>
+      <rect x="146" y="108" width="28" height="42" fill="hsl(${h} 30% 30%)"/>
+      <rect x="92" y="104" width="34" height="26" fill="hsl(200 60% 88%)" stroke="#fff" stroke-width="4"/>
+      <rect x="194" y="104" width="34" height="26" fill="hsl(200 60% 88%)" stroke="#fff" stroke-width="4"/>
+      <rect x="262" y="118" width="40" height="26" rx="3" fill="#c8361f"/><rect x="280" y="144" width="4" height="12" fill="#fff"/>
+      <text x="282" y="135" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9" fill="#fff">FOR SALE</text>
+    </svg>`;
+  }
+  function openSheet(l) {
+    sheetListing = l;
+    refreshSheet();
+  }
+  function refreshSheet() {
+    const host = $('sheetHost');
+    if (!sheetListing) { host.innerHTML = ''; return; }
+    const l = sheetListing;
+    host.innerHTML = `<div class="sheet" role="dialog" aria-label="Listing details">
+      <div class="photo">${houseSvg(l)}<button class="close" type="button" aria-label="Close listing">←</button><span class="badge">SAMPLE</span></div>
+      <div class="body">
+        <span class="price">${fmtPrice(l.price)}</span>
+        <span class="addr"></span>
+        <div class="facts"><span>${l.bd} bd</span><span>${l.ba} ba</span><span>${l.sqft.toLocaleString('en-CA')} sq ft</span><span>${l.type}</span></div>
+        <div class="broker"><span class="logo">YOUR<br>LOGO</span><div><b class="bname"></b><span>Listing brokerage</span></div></div>
+        <button class="cta" type="button">View full listing on REALTOR.ca</button>
+        <span class="fine">In the live app this opens the listing on REALTOR.ca. MLS® and REALTOR® trademark notices appear here.</span>
+      </div></div>`;
+    host.querySelector('.addr').textContent = `${l.addr}, Halifax, NS`;
+    host.querySelector('.bname').textContent = brokerName();
+    host.querySelector('.close').addEventListener('click', () => { sheetListing = null; refreshSheet(); });
+    host.querySelector('.cta').addEventListener('click', (e) => { e.currentTarget.textContent = 'Opens REALTOR.ca in the live app'; });
+  }
+
+  function selectTab(which) {
+    const isLog = which === 'log';
+    $('tabDrive').setAttribute('aria-selected', String(!isLog));
+    $('tabLog').setAttribute('aria-selected', String(isLog));
+    $('viewDrive').hidden = isLog;
+    $('viewLog').hidden = !isLog;
+    sheetListing = null; refreshSheet();
+  }
+  $('tabDrive').addEventListener('click', () => selectTab('drive'));
+  $('tabLog').addEventListener('click', () => selectTab('log'));
+
+  function renderPhone() {
+    const n = log.length;
+    $('driveBig').textContent = `${n} home${n === 1 ? '' : 's'}`;
+    $('statAlerts').textContent = alerts;
+    $('statSaved').textContent = n;
+    const pill = $('drivePill');
+    const on = playing || (simT > 0 && !finished);
+    pill.textContent = on ? 'Drive mode on' : 'Drive mode off';
+    pill.classList.toggle('on', on);
+    $('ruleNote').textContent = saveLater.checked
+      ? 'Save for later is on: nothing interrupts the drive. You get one summary once you have been parked for 2 minutes.'
+      : 'Alerts are short and need no tap. At most one every 2 minutes; the rest go to your drive log.';
+    const view = $('viewLog');
+    view.innerHTML = '';
+    if (!n) { view.innerHTML = '<p class="empty">Homes for sale you pass will show up here.</p>'; return; }
+    for (const { l, t } of log) {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'log-item';
+      item.innerHTML = `<span class="p"></span><span class="t">${mmss(t)}</span><span class="a"></span>`;
+      item.querySelector('.p').textContent = fmtPrice(l.price);
+      item.querySelector('.a').textContent = `${l.addr} · ${l.bd} bd · ${l.ba} ba`;
+      item.addEventListener('click', () => openSheet(l));
+      view.appendChild(item);
+    }
+  }
+
+  // ---------- Loop ----------
+  function placeCar() {
+    const d = Math.min(simT * SPEED_MPS, routeLen);
+    const p = pointAt(d);
+    car.setAttribute('transform', `translate(${p.x} ${p.y}) rotate(${p.heading})`);
+    ring.setAttribute('cx', p.x); ring.setAttribute('cy', p.y);
+    // Trail: route up to the car
+    const pts = [ROUTE[0]];
+    for (const s of segs) { if (s.start + s.len <= d) pts.push([s.x2, s.y2]); else break; }
+    pts.push([p.x, p.y]);
+    trail.setAttribute('d', `M${pts.map((q) => q.join(' ')).join(' L')}`);
+    $('clock').textContent = mmss(simT);
+    $('dist').textContent = `${(d / 1000).toFixed(2)} km`;
+    $('spd').textContent = `${playing && !finished ? 40 : 0} km/h`;
+    const mins = 41 + Math.floor(simT / 60);
+    $('phoneTime').textContent = `9:${String(mins).padStart(2, '0')}`;
+    return p;
+  }
+
+  function tick(now) {
+    if (!playing) return;
+    const dt = Math.min((now - last) / 1000, 0.1);
+    last = now;
+    simT += dt * speed;
+    const p = placeCar();
+    while (lastFix + FIX_EVERY_S <= simT && lastFix * SPEED_MPS < routeLen) {
+      lastFix += FIX_EVERY_S;
+      onFix(pointAt(lastFix * SPEED_MPS), lastFix);
+    }
+    if (simT * SPEED_MPS >= routeLen) { finishDrive(); placeCar(); return; }
+    requestAnimationFrame(tick);
+  }
+
+  function reset() {
+    playing = false; finished = false; simT = 0; lastFix = -1; seen = new Set(); lastAlertAt = null;
+    pending = []; log = []; alerts = 0; parkedAt = null; sheetListing = null;
+    for (const s of Object.values(signEls)) s.tag.setAttribute('opacity', 0);
+    bannersEl.innerHTML = ''; refreshSheet();
+    $('play').textContent = 'Start the drive';
+    $('driveStatus').textContent = 'Ready when you are';
+    placeCar(); renderPhone();
+  }
+
+  $('play').addEventListener('click', () => {
+    if (finished) reset();
+    playing = !playing;
+    $('play').textContent = playing ? 'Pause' : 'Resume';
+    $('driveStatus').textContent = playing ? 'Driving · Tidewater Avenue' : 'Paused';
+    if (playing) { last = performance.now(); requestAnimationFrame(tick); }
+    renderPhone();
+  });
+  $('reset').addEventListener('click', reset);
+  document.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => {
+    speed = Number(b.dataset.speed);
+    document.querySelectorAll('.seg button').forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+  }));
+  saveLater.addEventListener('change', renderPhone);
+
+  // Street name in the status line follows the car.
+  const streetForSeg = ['Tidewater Avenue', 'Lighthouse Lane', 'Harbourview Drive', 'Bluenose Crescent', 'Fogbank Street'];
+  setInterval(() => {
+    if (!playing) return;
+    const d = simT * SPEED_MPS;
+    const i = segs.findIndex((s) => d <= s.start + s.len);
+    if (i >= 0) $('driveStatus').textContent = `Driving · ${streetForSeg[i]}`;
+  }, 400);
+
+  reset();
+})();
+</script>
