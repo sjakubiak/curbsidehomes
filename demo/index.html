@@ -182,6 +182,21 @@ button, select, input[type="text"] { font: inherit; }
 .pitch .kicker { font-family: var(--font-mono); font-size: 12px; color: var(--sign); letter-spacing: .05em; margin-bottom: 6px; display: block; }
 footer { font-size: 13px; color: var(--muted); }
 
+/* Guide bubbles that point at the next thing to do. */
+.tip {
+  position: fixed; z-index: 50; max-width: 250px; background: var(--surface); color: var(--ink); border: 2px solid var(--sign);
+  border-radius: 18px; padding: 12px 34px 12px 14px; font-size: 14px; line-height: 1.4; box-shadow: 0 12px 30px -8px rgba(10, 25, 35, .35);
+  animation: bob 2.4s ease-in-out infinite;
+}
+.tip b { font-family: var(--font-display); display: block; font-size: 15px; margin-bottom: 2px; color: var(--sign); }
+.tip::after {
+  content: ""; position: absolute; left: var(--ax, 50%); bottom: -9px; width: 14px; height: 14px; margin-left: -7px; background: var(--surface);
+  border-right: 2px solid var(--sign); border-bottom: 2px solid var(--sign); transform: rotate(45deg);
+}
+.tip.below::after { bottom: auto; top: -9px; transform: rotate(225deg); }
+.tip-x { position: absolute; top: 6px; right: 8px; border: 0; background: none; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; padding: 4px; }
+@keyframes bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
+@media (prefers-reduced-motion: reduce) { .tip { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .banner, .sheet { animation: none; } .banner::after { animation: none; } .btn.attn { animation: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--sign) 35%, transparent); } .toggle span.track, .toggle span.track::after { transition: none; } }
 </style>
 
@@ -282,6 +297,8 @@ footer { font-size: 13px; color: var(--muted); }
       <p>Alerts can be read at a glance. One per home, never more than one every two minutes, and a Save for later mode that waits until the driver parks.</p>
     </div>
   </section>
+
+  <div class="tip" id="tip" role="status" hidden><span id="tipText"></span><button class="tip-x" id="tipX" type="button" aria-label="Dismiss tip">×</button></div>
 
   <footer>All homes, prices and street names in this demo are made up. The live app uses listings from a participating brokerage's DDF feed.</footer>
 </div>
@@ -423,7 +440,16 @@ footer { font-size: 13px; color: var(--muted); }
   // Match radius ring + car
   const ring = el('circle', { r: RULES.radiusM, fill: css('--harbour'), opacity: 0.08, stroke: css('--harbour'), 'stroke-opacity': 0.4, 'stroke-dasharray': '4 6' }, map);
   const car = el('g', {}, map);
-  el('path', { d: 'M0 -16 L11 12 L0 6 L-11 12 Z', fill: css('--harbour'), stroke: css('--surface'), 'stroke-width': 3, 'stroke-linejoin': 'round' }, car);
+  // Top-down car, nose pointing north before rotation.
+  for (const [wx, wy] of [[-13, -14], [9, -14], [-13, 6], [9, 6]]) el('rect', { x: wx, y: wy, width: 4, height: 9, rx: 1.5, fill: '#1b2228' }, car);
+  el('rect', { x: -11, y: -20, width: 22, height: 40, rx: 8, fill: css('--harbour'), stroke: css('--surface'), 'stroke-width': 2.5 }, car);
+  el('path', { d: 'M-8 -9 L8 -9 L6 -2 L-6 -2 Z', fill: 'hsl(200 60% 86%)' }, car);
+  el('rect', { x: -6, y: -2, width: 12, height: 10, rx: 2, fill: '#ffffff', opacity: 0.18 }, car);
+  el('path', { d: 'M-6 8 L6 8 L8 13 L-8 13 Z', fill: 'hsl(200 60% 86%)' }, car);
+  el('rect', { x: -8, y: -20, width: 5, height: 3, rx: 1, fill: '#ffe08a' }, car);
+  el('rect', { x: 3, y: -20, width: 5, height: 3, rx: 1, fill: '#ffe08a' }, car);
+  el('rect', { x: -8, y: 17.5, width: 5, height: 2.5, rx: 1, fill: '#ff6a4d' }, car);
+  el('rect', { x: 3, y: 17.5, width: 5, height: 2.5, rx: 1, fill: '#ff6a4d' }, car);
 
   // Legend
   const legend = el('g', { transform: 'translate(40 840)', 'font-family': 'Atkinson Hyperlegible, sans-serif', 'font-size': 14, fill: css('--muted') }, map);
@@ -439,7 +465,7 @@ footer { font-size: 13px; color: var(--muted); }
   const saveLater = $('saveLater');
   const brokerInput = $('brokerName');
   brokerInput.value = store.get('curbside-broker') || '';
-  brokerInput.addEventListener('input', () => { store.set('curbside-broker', brokerInput.value); refreshSheet(); });
+  brokerInput.addEventListener('input', () => { store.set('curbside-broker', brokerInput.value); refreshSheet(); doneTip('brand'); });
   const brokerName = () => brokerInput.value.trim() || 'Your Brokerage';
 
   function matchesBeside(p) {
@@ -489,6 +515,7 @@ footer { font-size: 13px; color: var(--muted); }
       pending = [];
     }
     renderPhone();
+    if (activeTip !== 'brand') showTip('log');
   }
 
   // ---------- Phone UI ----------
@@ -501,8 +528,9 @@ footer { font-size: 13px; color: var(--muted); }
       <span class="t1"><span></span><small>${note || 'now'}</small></span><span class="t2"></span><span class="tap">${quiet ? 'Silent in the app · tap to see it' : listing ? 'Tap to see the listing' : 'Tap to see your drive log'} ›</span>`;
     b.querySelector('.t1 span').textContent = title;
     b.querySelector('.t2').textContent = body;
-    b.addEventListener('click', () => { b.remove(); if (listing) openSheet(listing); else if (toLog) selectTab('log'); });
+    b.addEventListener('click', () => { doneTip('alert'); b.remove(); if (listing) openSheet(listing); else if (toLog) selectTab('log'); });
     bannersEl.prepend(b);
+    if (!quiet) showTip('alert');
     while (bannersEl.children.length > 3) bannersEl.lastChild.remove();
     // Counts down only while the drive plays, so pausing never makes an alert vanish unseen.
     b.dataset.left = '12000';
@@ -526,6 +554,7 @@ footer { font-size: 13px; color: var(--muted); }
   function openSheet(l) {
     sheetListing = l;
     refreshSheet();
+    showTip('brand');
   }
   function refreshSheet() {
     const host = $('sheetHost');
@@ -543,7 +572,7 @@ footer { font-size: 13px; color: var(--muted); }
       </div></div>`;
     host.querySelector('.addr').textContent = `${l.addr}, Halifax, NS`;
     host.querySelector('.bname').textContent = brokerName();
-    host.querySelector('.close').addEventListener('click', () => { sheetListing = null; refreshSheet(); });
+    host.querySelector('.close').addEventListener('click', () => { sheetListing = null; refreshSheet(); doneTip('brand'); });
     host.querySelector('.cta').addEventListener('click', (e) => { e.currentTarget.textContent = 'Opens REALTOR.ca in the live app'; });
   }
 
@@ -556,7 +585,7 @@ footer { font-size: 13px; color: var(--muted); }
     sheetListing = null; refreshSheet();
   }
   $('tabDrive').addEventListener('click', () => selectTab('drive'));
-  $('tabLog').addEventListener('click', () => selectTab('log'));
+  $('tabLog').addEventListener('click', () => { selectTab('log'); doneTip('log'); });
 
   function renderPhone() {
     const n = log.length;
@@ -585,6 +614,45 @@ footer { font-size: 13px; color: var(--muted); }
     }
   }
 
+  // ---------- Guide bubbles ----------
+  const TIPS = {
+    start: { target: () => $('play'), title: 'Start here', text: 'Press to send the car on a 4-minute sample drive.' },
+    alert: { target: () => bannersEl.firstElementChild, title: 'A home for sale!', text: 'Tap the alert to open the listing.' },
+    brand: { target: () => document.querySelector('.sheet .broker'), title: 'Your brokerage here', text: 'Type a name in the box under the phone and it shows on every listing.' },
+    log: { target: () => $('tabLog'), title: 'Drive over', text: 'Open the Drive log to see every home for sale you passed.' },
+  };
+  const tipEl = $('tip');
+  const tipsDone = new Set();
+  let activeTip = null;
+  function showTip(key) {
+    if (tipsDone.has(key)) return;
+    activeTip = key;
+    $('tipText').innerHTML = '<b></b><span></span>';
+    $('tipText').querySelector('b').textContent = TIPS[key].title;
+    $('tipText').querySelector('span').textContent = TIPS[key].text;
+    positionTip();
+  }
+  function doneTip(key) {
+    tipsDone.add(key);
+    if (activeTip === key) { activeTip = null; tipEl.hidden = true; }
+  }
+  function positionTip() {
+    const target = activeTip && TIPS[activeTip].target();
+    if (!target || !target.getClientRects().length) { tipEl.hidden = true; return; }
+    tipEl.hidden = false;
+    const r = target.getBoundingClientRect();
+    const w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+    const below = r.top < h + 20;
+    const cx = r.left + r.width / 2;
+    const left = Math.max(8, Math.min(window.innerWidth - w - 8, cx - w / 2));
+    tipEl.classList.toggle('below', below);
+    tipEl.style.left = `${left}px`;
+    tipEl.style.top = `${below ? r.bottom + 14 : r.top - h - 14}px`;
+    tipEl.style.setProperty('--ax', `${Math.max(18, Math.min(w - 18, cx - left))}px`);
+  }
+  (function followTarget() { if (activeTip) positionTip(); requestAnimationFrame(followTarget); })();
+  $('tipX').addEventListener('click', () => activeTip && doneTip(activeTip));
+
   // ---------- Loop ----------
   function ageBanners(ms) {
     for (const b of [...bannersEl.children]) {
@@ -595,7 +663,7 @@ footer { font-size: 13px; color: var(--muted); }
   function placeCar() {
     const d = Math.min(simT * SPEED_MPS, routeLen);
     const p = pointAt(d);
-    car.setAttribute('transform', `translate(${p.x} ${p.y}) rotate(${p.heading})`);
+    car.setAttribute('transform', `translate(${p.x} ${p.y}) rotate(${p.heading}) scale(1.7)`);
     ring.setAttribute('cx', p.x); ring.setAttribute('cy', p.y);
     // Trail: route up to the car
     const pts = [ROUTE[0]];
@@ -638,6 +706,7 @@ footer { font-size: 13px; color: var(--muted); }
 
   $('play').addEventListener('click', () => {
     if (finished) reset();
+    doneTip('start');
     playing = !playing;
     $('play').classList.toggle('attn', !playing);
     $('play').textContent = playing ? 'Pause' : 'Resume';
@@ -663,5 +732,6 @@ footer { font-size: 13px; color: var(--muted); }
   }, 400);
 
   reset();
+  showTip('start');
 })();
 </script>
