@@ -126,7 +126,14 @@ button, select, input[type="text"] { font: inherit; }
 .log-item .a { grid-column: 1 / -1; font-size: 13px; color: var(--phone-muted); }
 .empty { color: var(--phone-muted); text-align: center; padding: 40px 12px; font-size: 14px; }
 
-.banners { position: absolute; top: 34px; left: 8px; right: 8px; display: grid; gap: 6px; z-index: 5; pointer-events: none; }
+.banners { position: absolute; top: 34px; left: 8px; right: 8px; z-index: 5; pointer-events: none; }
+/* Newest alert on top; up to two older ones peek out underneath like a stack. */
+.banners .banner { z-index: 3; }
+.banners .banner:nth-child(n+2) { position: absolute; top: 0; left: 0; pointer-events: none; animation: none; filter: brightness(.9); }
+.banners .banner:nth-child(2) { z-index: 2; transform: translateY(9px) scale(.95); }
+.banners .banner:nth-child(3) { z-index: 1; transform: translateY(18px) scale(.9); }
+.banners .banner:nth-child(n+2) > * { visibility: hidden; }
+.banners .banner:nth-child(n+2)::after { display: none; }
 .banner {
   pointer-events: auto; text-align: left; border: 0; width: 100%; cursor: pointer; display: grid; grid-template-columns: 34px 1fr; gap: 2px 10px;
   background: var(--banner); color: var(--banner-ink); border-radius: 18px; padding: 10px 12px; box-shadow: 0 8px 24px rgba(0,0,0,.35);
@@ -496,7 +503,7 @@ footer { font-size: 13px; color: var(--muted); }
     b.querySelector('.t2').textContent = body;
     b.addEventListener('click', () => { b.remove(); if (listing) openSheet(listing); else if (toLog) selectTab('log'); });
     bannersEl.prepend(b);
-    while (bannersEl.children.length > 2) bannersEl.lastChild.remove();
+    while (bannersEl.children.length > 3) bannersEl.lastChild.remove();
     // Counts down only while the drive plays, so pausing never makes an alert vanish unseen.
     b.dataset.left = '12000';
   }
