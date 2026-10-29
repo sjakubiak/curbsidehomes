@@ -136,6 +136,10 @@ button, select, input[type="text"] { font: inherit; }
 .banner .t1 { font-weight: 700; font-size: 14px; display: flex; justify-content: space-between; gap: 8px; }
 .banner .t1 small { font-weight: 400; color: #5b6b75; font-size: 11px; }
 .banner .t2 { font-size: 13px; color: #34444d; }
+.banner { position: relative; }
+.banner::after { content: ""; position: absolute; inset: -4px; border-radius: 22px; border: 3px solid var(--sign); pointer-events: none; animation: ring 1.2s ease-out infinite; }
+@keyframes ring { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.05); } }
+.banner .tap { grid-column: 2; justify-self: start; margin-top: 4px; font-size: 12px; font-weight: 700; color: #fff; background: #c8361f; border-radius: 999px; padding: 2px 10px; }
 @keyframes drop { from { transform: translateY(-30px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 .sheet { position: absolute; inset: 0; background: #0f1a21; z-index: 8; display: flex; flex-direction: column; animation: up .3s ease-out; }
@@ -168,7 +172,7 @@ button, select, input[type="text"] { font: inherit; }
 .pitch .kicker { font-family: var(--font-mono); font-size: 12px; color: var(--sign); letter-spacing: .05em; margin-bottom: 6px; display: block; }
 footer { font-size: 13px; color: var(--muted); }
 
-@media (prefers-reduced-motion: reduce) { .banner, .sheet { animation: none; } .btn.attn { animation: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--sign) 35%, transparent); } .toggle span.track, .toggle span.track::after { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .banner, .sheet { animation: none; } .banner::after { animation: none; } .btn.attn { animation: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--sign) 35%, transparent); } .toggle span.track, .toggle span.track::after { transition: none; } }
 </style>
 
 <div class="wrap">
@@ -481,13 +485,13 @@ footer { font-size: 13px; color: var(--muted); }
     b.type = 'button';
     b.className = 'banner';
     b.innerHTML = `<span class="icon"><svg width="20" height="20" viewBox="0 0 40 40" aria-hidden="true"><path d="M9 21 20 12l11 9v9H9z" fill="none" stroke="#fff" stroke-width="3" stroke-linejoin="round"/></svg></span>
-      <span class="t1"><span></span><small>${note || 'now'}</small></span><span class="t2"></span>`;
+      <span class="t1"><span></span><small>${note || 'now'}</small></span><span class="t2"></span><span class="tap">${listing ? 'Tap to see the listing' : 'Tap to see your drive log'} ›</span>`;
     b.querySelector('.t1 span').textContent = title;
     b.querySelector('.t2').textContent = body;
     b.addEventListener('click', () => { b.remove(); if (listing) openSheet(listing); else if (toLog) selectTab('log'); });
     bannersEl.prepend(b);
     while (bannersEl.children.length > 2) bannersEl.lastChild.remove();
-    setTimeout(() => b.remove(), 7000);
+    setTimeout(() => b.remove(), 12000);
   }
 
   let sheetListing = null;
