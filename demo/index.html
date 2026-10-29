@@ -82,6 +82,8 @@ button, select, input[type="text"] { font: inherit; }
   outline: 3px solid color-mix(in srgb, var(--harbour) 55%, transparent); outline-offset: 2px;
 }
 .btn.secondary { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.btn.attn { background: var(--sign); box-shadow: 0 0 0 0 color-mix(in srgb, var(--sign) 60%, transparent); animation: pulse 1.4s ease-out infinite; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--sign) 60%, transparent); transform: scale(1); } 50% { transform: scale(1.06); } 100% { box-shadow: 0 0 0 16px color-mix(in srgb, var(--sign) 0%, transparent); transform: scale(1); } }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
 .seg button { border: 0; background: transparent; color: var(--muted); padding: 8px 12px; cursor: pointer; font-family: var(--font-mono); font-size: 13px; }
 .seg button[aria-pressed="true"] { background: var(--harbour); color: var(--surface); }
@@ -166,7 +168,7 @@ button, select, input[type="text"] { font: inherit; }
 .pitch .kicker { font-family: var(--font-mono); font-size: 12px; color: var(--sign); letter-spacing: .05em; margin-bottom: 6px; display: block; }
 footer { font-size: 13px; color: var(--muted); }
 
-@media (prefers-reduced-motion: reduce) { .banner, .sheet { animation: none; } .toggle span.track, .toggle span.track::after { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .banner, .sheet { animation: none; } .btn.attn { animation: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--sign) 35%, transparent); } .toggle span.track, .toggle span.track::after { transition: none; } }
 </style>
 
 <div class="wrap">
@@ -193,7 +195,7 @@ footer { font-size: 13px; color: var(--muted); }
         <span class="map-caption">Schematic map · 40 km/h · street names are fictional</span>
       </div>
       <div class="controls">
-        <button class="btn" id="play" type="button">Start the drive</button>
+        <button class="btn attn" id="play" type="button">Start the drive</button>
         <button class="btn secondary" id="reset" type="button">Reset</button>
         <div class="seg" role="group" aria-label="Playback speed">
           <button type="button" data-speed="4" aria-pressed="false">4×</button>
@@ -459,6 +461,7 @@ footer { font-size: 13px; color: var(--muted); }
   function finishDrive() {
     finished = true; playing = false;
     $('play').textContent = 'Drive again';
+    $('play').classList.add('attn');
     parkedAt = simT;
     $('driveStatus').textContent = 'Parked';
     if (saveLater.checked && pending.length) {
@@ -603,6 +606,7 @@ footer { font-size: 13px; color: var(--muted); }
     for (const s of Object.values(signEls)) s.tag.setAttribute('opacity', 0);
     bannersEl.innerHTML = ''; refreshSheet();
     $('play').textContent = 'Start the drive';
+    $('play').classList.add('attn');
     $('driveStatus').textContent = 'Ready when you are';
     placeCar(); renderPhone();
   }
@@ -610,6 +614,7 @@ footer { font-size: 13px; color: var(--muted); }
   $('play').addEventListener('click', () => {
     if (finished) reset();
     playing = !playing;
+    $('play').classList.toggle('attn', !playing);
     $('play').textContent = playing ? 'Pause' : 'Resume';
     $('driveStatus').textContent = playing ? 'Driving · Tidewater Avenue' : 'Paused';
     if (playing) { last = performance.now(); requestAnimationFrame(tick); }
